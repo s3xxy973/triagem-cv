@@ -1,6 +1,7 @@
 import streamlit as st
 import PyPDF2
 
+# Configuração da página
 st.set_page_config(
     page_title="Triagem de Currículos",
     layout="wide",
@@ -15,13 +16,13 @@ def ler_pdf(file):
         texto += page.extract_text() or ""
     return texto.lower()
 
-st.title("📄 Sistema de Triagem por Cargo (IA simples)")
-st.markdown("Escolhe um cargo e o sistema vai analisar os currículos")
+st.title("📄 Sistema de Triagem de Currículos")
+st.markdown("Escolhe um cargo e envia os currículos para análise")
 
 st.markdown("---")
 
-# 👉 NOVO: cargo desejado
-cargo = st.text_input("🎯 Escreve o cargo desejado (ex: programador, gestor, marketing)")
+# Cargo desejado
+cargo = st.text_input("🎯 Escreve o cargo desejado (ex: programador, marketing, gestor)")
 
 # Upload de PDFs
 files = st.file_uploader(
@@ -30,47 +31,37 @@ files = st.file_uploader(
     accept_multiple_files=True
 )
 
-# Botão
-if st.button("🔍 Analisar currículos"):
+# PROCESSAMENTO
+if files and cargo:
 
-    if not cargo:
-        st.warning("Escreve primeiro o cargo desejado!")
-    
-    elif not files:
-        st.warning("Carrega pelo menos um PDF!")
+    st.markdown("---")
+    st.subheader("📊 Ranking de Currículos")
 
-    else:
-        candidatos = []
+    resultados = []
 
-        # palavras base por cargo
-        palavras_base = {
-            "programador": ["python", "java", "programação", "software", "developer", "código"],
-            "gestor": ["gestão", "liderança", "equipa", "administração", "projetos"],
-            "marketing": ["marketing", "vendas", "publicidade", "digital", "redes sociais"]
-        }
+    # palavras-chave do cargo
+    palavras_chave = cargo.lower().split()
 
-        # escolher palavras do cargo
-        palavras_chave = palavras_base.get(cargo.lower(), cargo.lower().split())
+    for file in files:
+        texto = ler_pdf(file)
 
-        for file in files:
-            texto = ler_pdf(file)
+        # contar matches
+        matches = 0
+        for palavra in palavras_chave:
+            if palavra in texto:
+                matches += 1
 
+        # REGRA PRINCIPAL: sem match = 0%
+        if matches == 0:
             score = 0
+        else:
+            score = (matches / len(palavras_chave)) * 100
 
-            # pontuação por palavras-chave
-            for palavra in palavras_chave:
-                if palavra in texto:
-                    score += 20
+        resultados.append((file.name, score))
 
-            # bônus por tamanho do CV
-            score += len(texto) // 100
+    # ordenar do melhor para o pior
+    resultados.sort(key=lambda x: x[1], reverse=True)
 
-            candidatos.append((file.name, score))
-
-        # ranking
-        candidatos.sort(key=lambda x: x[1], reverse=True)
-
-        st.subheader(f"🏆 Ranking para o cargo: {cargo}")
-
-        for i, c in enumerate(candidatos):
-            st.write(f"{i+1}. {c[0]} — ⭐ Score: {c[1]}")
+    # mostrar resultados
+    for nome, score in resultados:
+        st.write(f"📄 {nome} → {score:.0f}%")
