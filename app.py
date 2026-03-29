@@ -3,79 +3,108 @@ import PyPDF2
 
 st.set_page_config(page_title="Triagem de Currículos", layout="wide")
 
-# PDF reader
+# ---------------------------
+# LER PDF
+# ---------------------------
 def ler_pdf(file):
     reader = PyPDF2.PdfReader(file)
     texto = ""
-
     for page in reader.pages:
         if page.extract_text():
             texto += page.extract_text()
-
     return texto.lower()
 
-# cargos e skills
+# ---------------------------
+# 20 ÁREAS PROFISSIONAIS
+# ---------------------------
 skills_por_cargo = {
-    "gestor": ["gestão", "liderança", "administração", "finanças"],
-    "programador": ["python", "java", "javascript", "sql"],
-    "marketing": ["marketing", "seo", "vendas"],
-    "agricultura": ["agricultura", "irrigação", "campo"]
+    "recursos humanos": ["rh", "recrutamento", "gestão de pessoas", "liderança", "treinamento"],
+    "gestão": ["gestão", "liderança", "administração", "planejamento", "estratégia"],
+    "contabilidade": ["contabilidade", "balanço", "finanças", "impostos", "auditoria"],
+    "financeiro": ["finanças", "investimento", "orçamento", "análise financeira", "contabilidade"],
+    "marketing": ["marketing", "seo", "vendas", "branding", "publicidade"],
+    "programação": ["python", "java", "javascript", "sql", "desenvolvimento"],
+    "agricultura": ["agricultura", "agronomia", "solo", "irrigação", "pecuária"],
+    "engenharia civil": ["construção", "betão", "estruturas", "obras", "engenharia"],
+    "enfermagem": ["enfermagem", "hospital", "cuidados", "paciente", "saúde"],
+    "medicina": ["diagnóstico", "medicina", "clínica", "paciente", "tratamento"],
+    "direito": ["advogado", "lei", "jurídico", "tribunal", "contrato"],
+    "educação": ["professor", "ensino", "educação", "didática", "aula"],
+    "logística": ["transporte", "logística", "armazenamento", "distribuição"],
+    "vendas": ["vendas", "negociação", "cliente", "comercial", "fecho"],
+    "administração": ["administração", "gestão", "organização", "processos"],
+    "ti": ["tecnologia", "rede", "sistemas", "suporte", "informática"],
+    "design": ["design", "photoshop", "ui", "ux", "criatividade"],
+    "recursos naturais": ["ambiente", "ecologia", "recursos naturais", "sustentabilidade"],
+    "hotelaria": ["hotel", "turismo", "atendimento", "hospitalidade"],
+    "construção": ["obra", "engenheiro", "canteiro", "construção", "projeto"]
 }
 
-# interface
-st.title("📄 Sistema de Triagem de Currículos")
+# ---------------------------
+# INTERFACE
+# ---------------------------
+st.title("📄 Sistema Inteligente de Triagem de Currículos")
 
-cargo = st.text_input("🎯 Cargo desejado")
-files = st.file_uploader("📥 Upload de CVs (PDF)", type="pdf", accept_multiple_files=True)
+cargo_input = st.text_input("🎯 Escreve o cargo (ex: gestor de recursos humanos, contabilidade, marketing)")
+
+files = st.file_uploader(
+    "📥 Upload de CVs (PDF)",
+    type="pdf",
+    accept_multiple_files=True
+)
 
 st.markdown("---")
+st.info("O sistema analisa automaticamente e faz ranking dos melhores candidatos")
 
-# SEMPRE MOSTRA ISSO (evita ecrã branco)
-st.info("⬆️ Preenche o cargo e faz upload dos CVs para começar")
+# ---------------------------
+# PROCESSAMENTO
+# ---------------------------
+if cargo_input and files:
 
-# só roda se tiver dados
-if cargo and files:
+    cargo = cargo_input.lower()
 
-    cargo = cargo.lower().strip()
+    # reconhecimento inteligente
+    cargo_encontrado = None
 
-    if cargo not in skills_por_cargo:
-        st.error("❌ Cargo não existe no sistema")
+    for chave in skills_por_cargo.keys():
+        if chave in cargo:
+            cargo_encontrado = chave
+            break
 
-    else:
+    if not cargo_encontrado:
+        st.error("❌ Cargo não reconhecido no sistema")
+        st.stop()
 
-        skills_vaga = skills_por_cargo[cargo]
-        resultados = []
+    skills_vaga = skills_por_cargo[cargo_encontrado]
 
-        for file in files:
+    resultados = []
 
-            texto = ler_pdf(file)
+    for file in files:
 
-            matches = [skill for skill in skills_vaga if skill in texto]
+        texto = ler_pdf(file)
 
-            if len(matches) == 0:
-                score = 0
-            else:
-                score = int((len(matches) / len(skills_vaga)) * 100)
+        matches = [skill for skill in skills_vaga if skill in texto]
 
-            resultados.append({
-                "nome": file.name,
-                "score": score,
-                "matches": matches
-            })
+        score = 0 if len(matches) == 0 else int((len(matches) / len(skills_vaga)) * 100)
 
-        resultados.sort(key=lambda x: x["score"], reverse=True)
+        resultados.append({
+            "nome": file.name,
+            "score": score,
+            "matches": matches
+        })
 
-        st.subheader("📊 Ranking de Candidatos")
+    resultados.sort(key=lambda x: x["score"], reverse=True)
 
-        pos = 1
+    st.subheader("📊 Ranking de Candidatos")
 
-        encontrou = False
+    pos = 1
+    encontrou = False
 
-        for r in resultados:
-            if r["score"] > 0:
-                encontrou = True
-                st.write(f"{pos}º - {r['nome']} → {r['score']}%")
-                pos += 1
+    for r in resultados:
+        if r["score"] > 0:
+            encontrou = True
+            st.write(f"{pos}º - {r['nome']} → {r['score']}%")
+            pos += 1
 
-        if not encontrou:
-            st.warning("❌ Nenhum candidato compatível encontrado")
+    if not encontrou:
+        st.warning("❌ Nenhum candidato compatível encontrado")
