@@ -1,67 +1,66 @@
 import streamlit as st
-import PyPDF2
 
-# Configuração da página
-st.set_page_config(
-    page_title="Triagem de Currículos",
-    layout="wide",
-    page_icon="📄"
-)
+    cargo = cargo.lower().strip()
 
-# Função para ler PDF
-def ler_pdf(file):
-    reader = PyPDF2.PdfReader(file)
-    texto = ""
-    for page in reader.pages:
-        texto += page.extract_text() or ""
-    return texto.lower()
+    if cargo not in skills_por_cargo:
+        st.error("❌ Cargo não encontrado no sistema")
 
-st.title("📄 Sistema de Triagem de Currículos")
-st.markdown("Escolhe um cargo e envia os currículos para análise")
+    else:
 
-st.markdown("---")
+        skills_vaga = skills_por_cargo[cargo]
 
-# Cargo desejado
-cargo = st.text_input("🎯 Escreve o cargo desejado (ex: programador, marketing, gestor)")
+        resultados = []
 
-# Upload de PDFs
-files = st.file_uploader(
-    "📥 Carrega os currículos (PDF)",
-    type="pdf",
-    accept_multiple_files=True
-)
+        for file in files:
 
-# PROCESSAMENTO
-if files and cargo:
+            texto = ler_pdf(file)
 
-    st.markdown("---")
-    st.subheader("📊 Ranking de Currículos")
+            matches = []
 
-    resultados = []
+            for skill in skills_vaga:
+                if skill.lower() in texto:
+                    matches.append(skill)
 
-    # palavras-chave do cargo
-    palavras_chave = cargo.lower().split()
+            total_matches = len(matches)
 
-    for file in files:
-        texto = ler_pdf(file)
+            # REGRA IMPORTANTE
+            # sem habilidades da vaga = 0%
+            if total_matches == 0:
+                score = 0
 
-        # contar matches
-        matches = 0
-        for palavra in palavras_chave:
-            if palavra in texto:
-                matches += 1
+            else:
+                score = int((total_matches / len(skills_vaga)) * 100)
 
-        # REGRA PRINCIPAL: sem match = 0%
-        if matches == 0:
-            score = 0
-        else:
-            score = (matches / len(palavras_chave)) * 100
+            resultados.append({
+                "nome": file.name,
+                "score": score,
+                "matches": matches
+            })
 
-        resultados.append((file.name, score))
+        # ordenar ranking
+        resultados = sorted(
+            resultados,
+            key=lambda x: x["score"],
+            reverse=True
+        )
 
-    # ordenar do melhor para o pior
-    resultados.sort(key=lambda x: x[1], reverse=True)
+        st.markdown("---")
+        st.subheader("📊 Ranking de Compatibilidade")
 
-    # mostrar resultados
-    for nome, score in resultados:
-        st.write(f"📄 {nome} → {score:.0f}%")
+        for resultado in resultados:
+
+            st.markdown(f"### 📄 {resultado['nome']}")
+
+            st.progress(resultado["score"] / 100)
+
+            st.write(f"✅ Compatibilidade: {resultado['score']}%")
+
+            if resultado["matches"]:
+                st.write(
+                    "🧠 Habilidades encontradas:",
+                    ", ".join(resultado["matches"])
+                )
+            else:
+                st.write("❌ Nenhuma habilidade compatível encontrada")
+
+            st.markdown("---")
