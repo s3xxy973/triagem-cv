@@ -1,11 +1,11 @@
 import streamlit as st
 import PyPDF2
 
-st.set_page_config(page_title="Triagem de Currículos", layout="wide")
+st.set_page_config(page_title="Triagem Inteligente de CVs", layout="wide")
 
-# -----------------------
+# -------------------------
 # LER PDF
-# -----------------------
+# -------------------------
 def ler_pdf(file):
     reader = PyPDF2.PdfReader(file)
     texto = ""
@@ -14,63 +14,66 @@ def ler_pdf(file):
             texto += page.extract_text()
     return texto.lower()
 
-# -----------------------
-# BASE DE ÁREAS E SKILLS
-# -----------------------
-areas = {
-    "recursos humanos": ["rh", "recrutamento", "liderança", "gestão de pessoas", "treinamento"],
-    "gestão": ["gestão", "administração", "planejamento", "estratégia", "liderança"],
-    "contabilidade": ["contabilidade", "balanço", "impostos", "auditoria", "finanças"],
-    "financeiro": ["finanças", "investimento", "orçamento", "análise financeira"],
-    "marketing": ["marketing", "seo", "vendas", "branding", "publicidade"],
-    "programação": ["python", "java", "javascript", "sql", "desenvolvimento"],
-    "agricultura": ["agricultura", "agronomia", "irrigação", "solo", "pecuária"],
-    "engenharia civil": ["construção", "obras", "betão", "estruturas"],
-    "enfermagem": ["enfermagem", "hospital", "paciente", "cuidados"],
-    "medicina": ["medicina", "diagnóstico", "tratamento", "clínica"],
-    "direito": ["advogado", "lei", "jurídico", "tribunal", "contrato"],
-    "educação": ["professor", "ensino", "educação", "aula"],
-    "logística": ["logística", "transporte", "armazenamento", "distribuição"],
-    "vendas": ["vendas", "negociação", "cliente", "comercial"],
-    "design": ["design", "ui", "ux", "photoshop", "criatividade"],
-    "hotelaria": ["hotel", "turismo", "atendimento", "hospitalidade"]
+# -------------------------
+# PERFIS (mais inteligentes)
+# -------------------------
+perfis = {
+    "recursos humanos": {
+        "peso_alto": ["recrutamento", "seleção", "rh", "gestão de pessoas"],
+        "peso_medio": ["liderança", "treinamento", "equipa", "contratação"]
+    },
+    "gestão": {
+        "peso_alto": ["gestão", "administração", "planejamento", "estratégia"],
+        "peso_medio": ["liderança", "organização", "coordenação"]
+    },
+    "contabilidade": {
+        "peso_alto": ["contabilidade", "balanço", "impostos", "auditoria"],
+        "peso_medio": ["finanças", "relatórios", "caixa"]
+    },
+    "financeiro": {
+        "peso_alto": ["finanças", "investimento", "orçamento"],
+        "peso_medio": ["análise financeira", "planeamento"]
+    },
+    "marketing": {
+        "peso_alto": ["marketing", "seo", "publicidade", "vendas"],
+        "peso_medio": ["branding", "redes sociais"]
+    },
+    "programação": {
+        "peso_alto": ["python", "java", "javascript", "sql"],
+        "peso_medio": ["desenvolvimento", "software", "git"]
+    }
 }
 
-# -----------------------
+# -------------------------
 # INTERFACE
-# -----------------------
-st.title("📄 Triagem Inteligente de Currículos")
+# -------------------------
+st.title("📄 IA de Triagem de Currículos")
 
-cargo_input = st.text_input("🎯 Escreve o cargo desejado")
-
-files = st.file_uploader(
-    "📥 Upload de CVs (PDF)",
-    type="pdf",
-    accept_multiple_files=True
-)
+cargo_input = st.text_input("🎯 Cargo desejado (ex: gestor de recursos humanos, marketing, contabilidade)")
+files = st.file_uploader("📥 Upload de CVs (PDF)", type="pdf", accept_multiple_files=True)
 
 st.markdown("---")
 
-# -----------------------
+# -------------------------
 # PROCESSAMENTO
-# -----------------------
+# -------------------------
 if cargo_input and files:
 
     cargo = cargo_input.lower()
 
-    # 🔥 SEM ERRO DE CARGO: procura por correspondência parcial
-    cargo_encontrado = None
+    # identificar perfil
+    perfil_encontrado = None
 
-    for area in areas:
-        if area in cargo:
-            cargo_encontrado = area
+    for p in perfis:
+        if p in cargo:
+            perfil_encontrado = p
             break
 
-    if cargo_encontrado is None:
-        st.error("❌ Área não reconhecida. Tenta: gestão, marketing, contabilidade, recursos humanos...")
+    if not perfil_encontrado:
+        st.error("❌ Não consegui identificar o cargo. Tenta: recursos humanos, gestão, marketing, contabilidade, financeiro, programação")
         st.stop()
 
-    skills = areas[cargo_encontrado]
+    regras = perfis[perfil_encontrado]
 
     resultados = []
 
@@ -78,14 +81,24 @@ if cargo_input and files:
 
         texto = ler_pdf(file)
 
-        matches = [s for s in skills if s in texto]
+        score = 0
 
-        score = int((len(matches) / len(skills)) * 100) if matches else 0
+        # peso alto
+        for palavra in regras["peso_alto"]:
+            if palavra in texto:
+                score += 20
+
+        # peso médio
+        for palavra in regras["peso_medio"]:
+            if palavra in texto:
+                score += 10
+
+        if score > 100:
+            score = 100
 
         resultados.append({
             "nome": file.name,
-            "score": score,
-            "matches": matches
+            "score": score
         })
 
     resultados.sort(key=lambda x: x["score"], reverse=True)
@@ -93,13 +106,7 @@ if cargo_input and files:
     st.subheader("📊 Ranking de Candidatos")
 
     pos = 1
-    encontrou = False
 
     for r in resultados:
-        if r["score"] > 0:
-            encontrou = True
-            st.write(f"{pos}º - {r['nome']} → {r['score']}%")
-            pos += 1
-
-    if not encontrou:
-        st.warning("❌ Nenhum candidato compatível encontrado")
+        st.write(f"{pos}º - {r['nome']} → {r['score']}%")
+        pos += 1
