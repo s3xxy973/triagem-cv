@@ -1,7 +1,7 @@
 import streamlit as st
 import PyPDF2
 
-st.set_page_config(page_title="Triagem Inteligente de CVs", layout="wide")
+st.set_page_config(page_title="IA de Recrutamento", layout="wide")
 
 # -------------------------
 # LER PDF
@@ -15,41 +15,37 @@ def ler_pdf(file):
     return texto.lower()
 
 # -------------------------
-# PERFIS (mais inteligentes)
+# PERFIS
 # -------------------------
 perfis = {
     "recursos humanos": {
-        "peso_alto": ["recrutamento", "seleção", "rh", "gestão de pessoas"],
-        "peso_medio": ["liderança", "treinamento", "equipa", "contratação"]
+        "alto": ["recrutamento", "seleção", "rh", "gestão de pessoas"],
+        "medio": ["liderança", "treinamento", "equipa", "contratação"]
     },
     "gestão": {
-        "peso_alto": ["gestão", "administração", "planejamento", "estratégia"],
-        "peso_medio": ["liderança", "organização", "coordenação"]
+        "alto": ["gestão", "administração", "estratégia", "planejamento"],
+        "medio": ["liderança", "organização", "coordenação"]
     },
     "contabilidade": {
-        "peso_alto": ["contabilidade", "balanço", "impostos", "auditoria"],
-        "peso_medio": ["finanças", "relatórios", "caixa"]
-    },
-    "financeiro": {
-        "peso_alto": ["finanças", "investimento", "orçamento"],
-        "peso_medio": ["análise financeira", "planeamento"]
+        "alto": ["contabilidade", "balanço", "impostos", "auditoria"],
+        "medio": ["finanças", "relatórios", "caixa"]
     },
     "marketing": {
-        "peso_alto": ["marketing", "seo", "publicidade", "vendas"],
-        "peso_medio": ["branding", "redes sociais"]
+        "alto": ["marketing", "seo", "publicidade", "vendas"],
+        "medio": ["branding", "redes sociais"]
     },
     "programação": {
-        "peso_alto": ["python", "java", "javascript", "sql"],
-        "peso_medio": ["desenvolvimento", "software", "git"]
+        "alto": ["python", "java", "javascript", "sql"],
+        "medio": ["desenvolvimento", "software", "git"]
     }
 }
 
 # -------------------------
 # INTERFACE
 # -------------------------
-st.title("📄 IA de Triagem de Currículos")
+st.title("📄 IA de Recrutamento Inteligente (HR System)")
 
-cargo_input = st.text_input("🎯 Cargo desejado (ex: gestor de recursos humanos, marketing, contabilidade)")
+cargo_input = st.text_input("🎯 Cargo desejado")
 files = st.file_uploader("📥 Upload de CVs (PDF)", type="pdf", accept_multiple_files=True)
 
 st.markdown("---")
@@ -61,19 +57,18 @@ if cargo_input and files:
 
     cargo = cargo_input.lower()
 
-    # identificar perfil
-    perfil_encontrado = None
+    perfil = None
 
     for p in perfis:
         if p in cargo:
-            perfil_encontrado = p
+            perfil = p
             break
 
-    if not perfil_encontrado:
-        st.error("❌ Não consegui identificar o cargo. Tenta: recursos humanos, gestão, marketing, contabilidade, financeiro, programação")
+    if not perfil:
+        st.error("❌ Cargo não reconhecido (ex: recursos humanos, gestão, marketing, contabilidade)")
         st.stop()
 
-    regras = perfis[perfil_encontrado]
+    regras = perfis[perfil]
 
     resultados = []
 
@@ -81,16 +76,19 @@ if cargo_input and files:
 
         texto = ler_pdf(file)
 
+        encontrados_alto = []
+        encontrados_medio = []
+
         score = 0
 
-        # peso alto
-        for palavra in regras["peso_alto"]:
-            if palavra in texto:
+        for w in regras["alto"]:
+            if w in texto:
+                encontrados_alto.append(w)
                 score += 20
 
-        # peso médio
-        for palavra in regras["peso_medio"]:
-            if palavra in texto:
+        for w in regras["medio"]:
+            if w in texto:
+                encontrados_medio.append(w)
                 score += 10
 
         if score > 100:
@@ -98,7 +96,9 @@ if cargo_input and files:
 
         resultados.append({
             "nome": file.name,
-            "score": score
+            "score": score,
+            "alto": encontrados_alto,
+            "medio": encontrados_medio
         })
 
     resultados.sort(key=lambda x: x["score"], reverse=True)
@@ -108,5 +108,21 @@ if cargo_input and files:
     pos = 1
 
     for r in resultados:
-        st.write(f"{pos}º - {r['nome']} → {r['score']}%")
+
+        st.markdown(f"### {pos}º - {r['nome']}")
+
+        st.progress(r["score"] / 100)
+        st.write(f"🎯 Score: {r['score']}%")
+
+        if r["alto"]:
+            st.success("🔥 Competências fortes: " + ", ".join(r["alto"]))
+
+        if r["medio"]:
+            st.info("📌 Competências médias: " + ", ".join(r["medio"]))
+
+        if not r["alto"] and not r["medio"]:
+            st.error("❌ Sem competências relevantes")
+
+        st.markdown("---")
+
         pos += 1
