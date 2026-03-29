@@ -1,74 +1,114 @@
 import streamlit as st
 import PyPDF2
 
-st.set_page_config(page_title="IA de Recrutamento", layout="wide")
+# =========================
+# CONFIGURAÇÃO DA PÁGINA
+# =========================
+st.set_page_config(page_title="AI Recruitment System", layout="wide")
 
-# -------------------------
-# LER PDF
-# -------------------------
+# =========================
+# DESIGN MODERNO
+# =========================
+st.markdown("""
+<style>
+    .main {
+        background-color: #0e1117;
+        color: white;
+    }
+
+    h1 {
+        color: #00ffcc;
+        text-align: center;
+    }
+
+    .stTextInput > div > div > input {
+        background-color: #1c1f26;
+        color: white;
+    }
+
+    .stFileUploader {
+        background-color: #1c1f26;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .stProgress > div > div > div > div {
+        background-color: #00ffcc;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# =========================
+# PDF READER
+# =========================
 def ler_pdf(file):
     reader = PyPDF2.PdfReader(file)
-    texto = ""
+    text = ""
     for page in reader.pages:
         if page.extract_text():
-            texto += page.extract_text()
-    return texto.lower()
+            text += page.extract_text()
+    return text.lower()
 
-# -------------------------
-# PERFIS
-# -------------------------
-perfis = {
-    "recursos humanos": {
-        "alto": ["recrutamento", "seleção", "rh", "gestão de pessoas"],
-        "medio": ["liderança", "treinamento", "equipa", "contratação"]
-    },
-    "gestão": {
-        "alto": ["gestão", "administração", "estratégia", "planejamento"],
-        "medio": ["liderança", "organização", "coordenação"]
-    },
-    "contabilidade": {
-        "alto": ["contabilidade", "balanço", "impostos", "auditoria"],
-        "medio": ["finanças", "relatórios", "caixa"]
-    },
-    "marketing": {
-        "alto": ["marketing", "seo", "publicidade", "vendas"],
-        "medio": ["branding", "redes sociais"]
-    },
-    "programação": {
-        "alto": ["python", "java", "javascript", "sql"],
-        "medio": ["desenvolvimento", "software", "git"]
-    }
+# =========================
+# BASE DE CARGOS (20 ÁREAS)
+# =========================
+areas = {
+    "recursos humanos": ["recrutamento", "seleção", "rh", "gestão de pessoas", "treinamento"],
+    "gestão": ["gestão", "administração", "planejamento", "estratégia", "liderança"],
+    "contabilidade": ["contabilidade", "balanço", "impostos", "auditoria"],
+    "financeiro": ["finanças", "investimento", "orçamento", "análise financeira"],
+    "marketing": ["marketing", "seo", "publicidade", "vendas", "branding"],
+    "programação": ["python", "java", "javascript", "sql", "desenvolvimento"],
+    "agricultura": ["agricultura", "irrigação", "solo", "pecuária"],
+    "engenharia civil": ["construção", "obras", "betão", "engenharia"],
+    "enfermagem": ["enfermagem", "hospital", "paciente", "cuidados"],
+    "medicina": ["medicina", "diagnóstico", "tratamento", "clínica"],
+    "direito": ["advogado", "lei", "jurídico", "tribunal"],
+    "educação": ["professor", "ensino", "educação", "aula"],
+    "logística": ["logística", "transporte", "armazenamento", "distribuição"],
+    "vendas": ["vendas", "negociação", "cliente", "comercial"],
+    "design": ["design", "ui", "ux", "photoshop", "criatividade"],
+    "hotelaria": ["hotel", "turismo", "hospitalidade", "atendimento"],
+    "recursos naturais": ["ambiente", "ecologia", "sustentabilidade"],
+    "ti": ["tecnologia", "rede", "sistemas", "suporte"],
+    "administração": ["administração", "organização", "processos"],
+    "engenharia": ["engenharia", "projeto", "cálculo", "estrutura"]
 }
 
-# -------------------------
+# =========================
 # INTERFACE
-# -------------------------
-st.title("📄 IA de Recrutamento Inteligente (HR System)")
+# =========================
+st.title("🚀 AI Recruitment System")
+st.caption("Triagem inteligente de currículos com análise automática")
 
-cargo_input = st.text_input("🎯 Cargo desejado")
+cargo_input = st.text_input("🎯 Escreve o cargo desejado (ex: gestor de recursos humanos, marketing, contabilidade)")
+
 files = st.file_uploader("📥 Upload de CVs (PDF)", type="pdf", accept_multiple_files=True)
 
 st.markdown("---")
 
-# -------------------------
+st.info("ℹ️ O sistema analisa os CVs e cria ranking automático baseado em competências")
+
+# =========================
 # PROCESSAMENTO
-# -------------------------
+# =========================
 if cargo_input and files:
 
     cargo = cargo_input.lower()
 
-    perfil = None
+    # detectar área automaticamente
+    area_detectada = None
 
-    for p in perfis:
-        if p in cargo:
-            perfil = p
+    for a in areas:
+        if a in cargo:
+            area_detectada = a
             break
 
-    if not perfil:
-        st.error("❌ Cargo não reconhecido (ex: recursos humanos, gestão, marketing, contabilidade)")
+    if not area_detectada:
+        st.error("❌ Cargo não reconhecido. Tenta algo como: gestão, marketing, contabilidade, recursos humanos, programação")
         st.stop()
 
-    regras = perfis[perfil]
+    skills = areas[area_detectada]
 
     resultados = []
 
@@ -76,29 +116,14 @@ if cargo_input and files:
 
         texto = ler_pdf(file)
 
-        encontrados_alto = []
-        encontrados_medio = []
+        matches = [s for s in skills if s in texto]
 
-        score = 0
-
-        for w in regras["alto"]:
-            if w in texto:
-                encontrados_alto.append(w)
-                score += 20
-
-        for w in regras["medio"]:
-            if w in texto:
-                encontrados_medio.append(w)
-                score += 10
-
-        if score > 100:
-            score = 100
+        score = int((len(matches) / len(skills)) * 100) if matches else 0
 
         resultados.append({
             "nome": file.name,
             "score": score,
-            "alto": encontrados_alto,
-            "medio": encontrados_medio
+            "matches": matches
         })
 
     resultados.sort(key=lambda x: x["score"], reverse=True)
@@ -114,13 +139,9 @@ if cargo_input and files:
         st.progress(r["score"] / 100)
         st.write(f"🎯 Score: {r['score']}%")
 
-        if r["alto"]:
-            st.success("🔥 Competências fortes: " + ", ".join(r["alto"]))
-
-        if r["medio"]:
-            st.info("📌 Competências médias: " + ", ".join(r["medio"]))
-
-        if not r["alto"] and not r["medio"]:
+        if r["matches"]:
+            st.success("✔ Competências encontradas: " + ", ".join(r["matches"]))
+        else:
             st.error("❌ Sem competências relevantes")
 
         st.markdown("---")
